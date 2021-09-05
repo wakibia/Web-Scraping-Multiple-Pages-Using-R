@@ -40,7 +40,7 @@ The following are the variables that will be scraped along with their descriptio
 
 | Variable | Description |
 | ------  | -------- |
-| Rank | The rank of the film from 1 to 100 on the list of 100 most popular feature films released in 2016 |
+| Rank | The rank of the film from 1 to 100 on the list of 100 most popular feature films released in 2020 |
 | Title | The title of the feature film |
 | Description | The description of the feature film |
 | Runtime | The duration of the feature film in minutes |
