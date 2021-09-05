@@ -1,0 +1,171 @@
+---
+author: <center><b>Cyrus Wakibia</b></center>
+title: <center><b>Scraping Multiple Pages</b></scenter>
+date: <center><b>05-09-2021</b></center>
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+---
+
+```{r setup, include=FALSE}
+## load the libraries
+library(dplyr)
+library(rvest)
+library(stringr)
+library(purrr)
+library(knitr)
+library(readr)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, cache = TRUE)
+```
+
+## Web Scraping Multiple Pages of the IMDB movies
+
+>- This repository is an extension of my previous repository where we were scraping data from a single page [Web scraping](https://github.com/wakibia/Web_scraping)
+>- The reason for choosing the IMDB repository its because the way web pages are changing is quite complicated.
+>- We seek to scrape the data for the movies generated from First January to December 31st 2020
+>- The link to the data is [IMDB 2020](https://www.imdb.com/search/title/?title_type=feature&release_date=2020-01-01,2020-12-31&count=100&ref_=adv_prv)
+
+## Web Scraping Procedure
+
+>- The scraping procedure is similar to the one discussed at [Web scraping](https://github.com/wakibia/Web_scraping)
+>- The additional steps required is only creating a function that will help in iterating the process from one page to the other
+>- To achieve iteration from one page to another we will use r`purrr` package which has a set of different map function
+
+## Variables to be SCraped
+
+>- Since this is for pedagogical purposes we are going to scrape only 3 pages but the procedure is the same. This is because the higher the number of pages to be scraped the longer it will take
+
+The following are the variables that will be scraped along with their descriptions:
+
+| Variable | Description |
+| ------  | -------- |
+| Rank | The rank of the film from 1 to 100 on the list of 100 most popular feature films released in 2016 |
+| Title | The title of the feature film |
+| Description | The description of the feature film |
+| Runtime | The duration of the feature film in minutes |
+| Genre:| The genre of the feature film |
+| Rating | The IMDb rating of the feature film |
+| Votes | Votes cast in favor of the feature film |
+| Director | The main director of the feature film. Note, in case of multiple directors, I’ll take only the first |
+| Actor | The main actor in the feature film. Note, in case of multiple actors, I’ll take only the first |
+
+
+After scraping the data, the data frame will be exported to a csv file which can later be retrieved from a local environment
+
+```{r prepare web pages, include=FALSE}
+web_page <- "https://www.imdb.com/search/title/?title_type=feature&release_date=2020-01-01,2020-12-31&count=100&start=101&ref_=adv_nxt"
+
+web_page <- paste0("https://www.imdb.com/search/title/?title_type=feature&release_date=2020-01-01,2020-12-31&count=100&start=", seq(101, 301, by = 100), "&ref_=adv_nxt") ## this is because the web pages are changing after 100 counts, and that is why we used a sequence
+
+
+```
+
+Creating the function that will be used in scraping every page
+
+```{r Wrapper function, include=FALSE}
+## create a wrapper function that will be applied to each page
+
+get_movies_info <- function(web_page){
+  web_page <- read_html(web_page)
+  
+  ## title
+  title <- web_page %>% 
+    html_nodes(".lister-item-header a") %>% 
+    html_text()
+  
+  ## Director
+  director <- web_page %>% 
+    html_nodes(".text-muted+ p a:nth-child(1)") %>% 
+    html_text()
+  
+  
+  ## Actors
+  actors <- web_page %>% 
+    html_nodes(".text-muted+ p") %>% 
+    html_text() %>% 
+    ## remove the extra spaces and lines
+    str_remove("\n") %>% 
+    str_squish(.) %>% 
+    str_extract("Stars:\\s\\w.*") %>% 
+    str_remove("Stars: ")
+  
+  
+  ## genre
+  genre <- web_page %>% 
+    html_nodes(".genre") %>% 
+    html_text() %>% 
+    str_remove("\\n") %>% 
+    str_squish(.)
+  
+  
+  # Description: The description of the feature film.
+  Description <- web_page %>% 
+    html_nodes(".ratings-bar+ .text-muted") %>% 
+    html_text() %>% 
+    ## remove the etra lines
+    str_remove_all("\n") %>% 
+    ## remove extra white spaces
+    str_squish(.)
+  
+  # Runtime: The duration of the feature film in minutes
+  runtime <- web_page %>% 
+    html_nodes(".runtime") %>% 
+    html_text() %>% 
+    ## extract the digits from the character
+    str_extract("\\d*") %>% 
+    ## convert to numbers
+    as.numeric()
+  
+  # Votes: Votes cast in favor of the feature film
+  Votes <- web_page %>% 
+    html_nodes(".sort-num_votes-visible span:nth-child(2)") %>% 
+    html_text() %>% 
+    ## remove commas
+    str_remove(",") %>% 
+    ## convert to numeric
+    as.numeric()
+  
+  ## rank
+  rank <- web_page %>% html_nodes('.text-primary') %>% 
+    html_text() %>% 
+    ## convert the rank to numerics
+    as.numeric()
+  
+  # Rating: The IMDb rating of the feature film.
+  
+  rating <- web_page %>% 
+    html_nodes(".ratings-imdb-rating strong") %>% 
+    html_text() %>% 
+    as.numeric()
+
+  
+  
+  ## Create a data frame using those variables retrieved
+  movie_df <- tibble(rank, title, director, actors, genre, Description, runtime,
+                     Votes, rating)
+  
+  ## the results will return the above created data frame
+  return(movie_df)
+
+}
+```
+
+Applying the function to every page
+
+```{r mapping the function}
+
+## applying the function using the map_dfr
+
+movies_data <- map_dfr(web_page, get_movies_info)
+
+kable(head(movies_data, 20), caption = "This is the data that has been scraped")
+```
+
+
+Finally export the data to a csv file
+
+```{r}
+write_csv(movies_data, "Movies_data.csv")
+```
+
