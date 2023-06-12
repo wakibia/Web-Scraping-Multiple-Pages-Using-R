@@ -1,4 +1,4 @@
-# Web-Scraping-Multiple-Pages
+# Web-Scraping-Multiple-Pages-Using-R
 
 ## Web Scraping Multiple Pages of the IMDB movies
 
